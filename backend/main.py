@@ -2,24 +2,37 @@ import base64
 import modal
 import os
 import uuid
+import requests
+
+from pydantic import BaseModel
+
 
 app = modal.App("music-generator")
 
 image = (
     modal.Image.debian_slim()
-    .apt_install("git")
+    .apt_install("git", "ffmpeg", "libavcodec-dev", "libavformat-dev", "libavutil-dev")
+    .pip_install_from_requirements("requirements.txt")
     .run_commands(
-        "git clone https://github.com/ace-step/ACE-Step.git /tmp/ACE-Step",
-        "cd /tmp/ACE-Step && python -m pip install .",
+        [
+            "git clone https://github.com/ace-step/ACE-Step.git /tmp/ACE-Step",
+            "cd /tmp/ACE-Step && pip install .",
+        ]
     )
+    .pip_install("torchcodec", index_url="https://download.pytorch.org/whl/cu121")
     .env({"HF_HOME": "/.cache/huggingface"})
     .add_local_python_source("prompts")
 )
+
 
 model_volume = modal.Volume.from_name("ace-step-models", create_if_missing=True)
 hf_volume = modal.Volume.from_name("qwen-hf-cache", create_if_missing=True)
 
 music_gen_secrets = modal.Secret.from_name("music-gen-secret")
+
+
+class GenerateMusicResponse(BaseModel):
+    audio_data: str
 
 
 # @app.function(image=image, secrets=[music_gen_secrets])
@@ -39,7 +52,10 @@ class MusicGenServer:
     @modal.enter()
     def load_model(self):
         from acestep.pipeline_ace_step import ACEStepPipeline
-        from transformers import AutoProcessor, Qwen3VLMoeForConditionalGeneration
+        from transformers import (
+            AutoTokenizer,
+            AutoModelForCausalLM,
+        )
         from diffusers import AutoPipelineForText2Image
         import torch
 
@@ -54,20 +70,24 @@ class MusicGenServer:
         )
 
         # Large Language Model
-        model_id = "Qwen/Qwen3-VL-235B-A22B-Instruct"
-        self.processor = AutoProcessor.from_pretrained(model_id)
-        self.llm_model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
-            model_id, dtype="auto", device_map="auto", cache_dir="/.cache/huggingface"
+        model_id = "Qwen/Qwen2-7B-Instruct"
+        self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+
+        self.llm_model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            torch_dtype="auto",
+            device_map="auto",
+            cache_dir="/.cache/huggingface",
         )
 
         # Stable Difusion Model (thumbnail)
-        self.pipe = AutoPipelineForText2Image.from_pretrained(
+        self.image_pipe = AutoPipelineForText2Image.from_pretrained(
             "stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16"
         )
-        self.pipe.to("cuda")
+        self.image_pipe.to("cuda")
 
     @modal.fastapi_endpoint(method="POST")
-    def generate(self):
+    def generate(self) -> GenerateMusicResponse:
         output_dir = "/tmp/outputs/"
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, f"{uuid.uuid4()}.wav")
@@ -83,8 +103,12 @@ class MusicGenServer:
         with open(output_path, "rb") as f:
             audio_bytes = f.read()
 
-        audio_bytes = base64.b64encode(audio_bytes).decode("utf-8")
+        print(f"Audio bytes length on server: {len(audio_bytes)}")
+
+        audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
         os.remove(output_path)
+
+        return GenerateMusicResponse(audio_data=audio_b64)
 
     def test_endpoint(self):
         self.music_model
@@ -92,4 +116,33 @@ class MusicGenServer:
 
 @app.local_entrypoint()
 def main():
-    function_test.remote()
+    server = MusicGenServer()
+    endpoint_url = server.generate.get_web_url()
+
+    print(f"Endpoint URL: {endpoint_url}")
+    print("Sending request to Modal server...")
+
+    response = requests.post(endpoint_url)
+    response.raise_for_status()
+    print(f"Response status: {response.status_code}")
+
+    result = GenerateMusicResponse(**response.json())
+    print(f"Received audio data length: {len(result.audio_data)} characters")
+
+    try:
+        audio_bytes = base64.b64decode(result.audio_data)
+        print(f"Decoded audio bytes length: {len(audio_bytes)}")
+
+        output_filename = "generated.wav"
+        output_path = os.path.abspath(output_filename)
+
+        with open(output_filename, "wb") as f:
+            f.write(audio_bytes)
+
+        print(f"Audio file saved successfully: {output_path}")
+        print(f"File size: {os.path.getsize(output_filename)} bytes")
+
+    except Exception as e:
+        print(f"Error saving audio file: {e}")
+        import traceback
+        traceback.print_exc()
