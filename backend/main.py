@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from prompts import PROMPT_GENERATOR_PROMPT
 from prompts import LYRICS_GENERATOR_PROMPT
+import boto3
 
 
 app = modal.App("music-generator")
@@ -114,7 +115,10 @@ class MusicGenServer:
 
         # Stable Difusion Model (thumbnail)
         self.image_pipe = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16"
+            "stabilityai/sdxl-turbo",
+            torch_dtype=torch.float16,
+            variant="fp16",
+            cache_dir="/.cache/hungingface",
         )
         self.image_pipe.to("cuda")
 
@@ -170,9 +174,40 @@ class MusicGenServer:
         print(f"Prompt: \n{prompt}")
         # AWS
         # Create S3 Bucket: thumbnails, songs
+        s3_client = boto3.client("s3")
+        bucket_name = os.environ("S3_BUCKET_NAME")
+
+        output_dir = "/tmp/outputs/"
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, f"{uuid.uuid4()}.wav")
         # IAM users:
         # -backend(model): PutObjects, getObjects, listObjects
-        # -Frontend (next-jd) : getObject, listObject
+        self.music_model(
+            prompt=prompt,
+            lyrics=final_lyrics,
+            audio_duration=audio_duration,
+            infer_step=infer_step,
+            save_path=output_path,
+        )
+
+        audio_s3_key = f"{uuid.uuid4()}.wav"
+        s3_client.upload_file(output_path, bucket_name, audio_s3_key)
+
+        os.remove(output_path)
+
+        # Thumbnali generation
+        thumbnail_prompt = f"{prompt}, album cover art"
+        image = self.image_pipe(
+            prompt=prompt, num_inference_steps=2, guidance_scale=guidance_scale
+        ).images[0]
+
+        image_output_path = os.path.join(output_dir, f"{uuid.uuid4()}.png")
+        image.save(image_output_path)
+        image_s3_key = f"{uuid.uuid4()}.png"
+        s3_client.upload_file(image_output_path, bucket_name, image_s3_key)
+        os.remove(image_output_path)
+
+        # Category generation
 
     @modal.fastapi_endpoint(method="POST")
     def generate(self) -> GenerateMusicResponse:
