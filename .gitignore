@@ -8,6 +8,7 @@ __pycache__/
 *.pyo
 *.pyd
 *.wav
+*.env
 
 # Other common ignores
 *.env  # Nếu có file môi trường chứa secret

@@ -43,7 +43,7 @@ music_gen_secrets = modal.Secret.from_name("music-gen-secret")
 class AudioGenerationBase(BaseModel):
     audio_duration: float = 180.0
     seed: int = -1
-    quidance_scale: float = 15.0
+    guidance_scale: float = 15.0
     infer_step: int = 60
     instrumental: bool = False
 
@@ -201,7 +201,7 @@ class MusicGenServer:
             audio_duration=audio_duration,
             infer_step=infer_step,
             save_path=output_path,
-            manual_seed=str(seed),
+            manual_seeds=str(seed),
         )
 
         audio_s3_key = f"{uuid.uuid4()}.wav"
@@ -212,7 +212,9 @@ class MusicGenServer:
         # Thumbnali generation
         thumbnail_prompt = f"{prompt}, album cover art"
         image = self.image_pipe(
-            prompt=prompt, num_inference_steps=2, guidance_scale=guidance_scale
+            prompt=thumbnail_prompt,
+            num_inference_steps=2,
+            guidance_scale=guidance_scale,
         ).images[0]
 
         image_output_path = os.path.join(output_dir, f"{uuid.uuid4()}.png")
@@ -255,18 +257,21 @@ class MusicGenServer:
 
         return GenerateMusicResponse(audio_data=audio_b64)
 
-    @modal.fastapi_endpoint(method="POST")
+    @modal.fastapi_endpoint(method="POST", requires_proxy_auth=True)
     def generate_from_description(
         self, request: GenerateFromDescriptionRequest
     ) -> GenerateMusicResponseS3:
 
         # Generating a prompt
-        prompt = self.generate_from_description(request.full_describd_song)
+        prompt = self.generate_prompt(request.full_describd_song)
+        print(f"prompt generated: {prompt}")
         # Generate lyrics
         lyrics = ""
 
         if not request.instrumental:
             lyrics = self.generate_lyrics(request.full_describd_song)
+
+        print(f"Lyrics generated: {lyrics}")
 
         return self.generate_and_upload_to_s3(
             prompt=prompt,
@@ -275,7 +280,7 @@ class MusicGenServer:
             **request.model_dump(exclude={"full_describd_song"}),
         )
 
-    @modal.fastapi_endpoint(method="POST")
+    @modal.fastapi_endpoint(method="POST", requires_proxy_auth=True)
     def generate_with_lyrics(
         self, request: GenerateWithCustomLyricsRequest
     ) -> GenerateMusicResponseS3:
@@ -283,10 +288,10 @@ class MusicGenServer:
             prompt=request.prompt,
             lyrics=request.lyrics,
             description_for_categorization=request.prompt,
-            **request.model_dump(),
+            **request.model_dump(exclude={"prompt", "lyrics"}),
         )
 
-    @modal.fastapi_endpoint(method="POST")
+    @modal.fastapi_endpoint(method="POST", requires_proxy_auth=True)
     def generate_with_described_lyrics(
         self, request: GenerateWithDescribedLyricsRequest
     ) -> GenerateMusicResponseS3:
@@ -300,7 +305,7 @@ class MusicGenServer:
             prompt=request.prompt,
             lyrics=lyrics,
             description_for_categorization=request.prompt,
-            **request.model_dump(exclude={"described_lyrics"}),
+            **request.model_dump(exclude={"described_lyrics", "prompt"}),
         )
 
     def test_endpoint(self):
@@ -309,18 +314,25 @@ class MusicGenServer:
 
 @app.local_entrypoint()
 def main():
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     server = MusicGenServer()
     endpoint_url = server.generate_from_description.get_web_url()
-    request_data = GenerateFromDescriptionRequest(
-        full_describd_song="lofi pop", guidance_scale=7.5
-    )
+    request_data = GenerateFromDescriptionRequest(full_describd_song="lofi song")
+
+    headers = {
+        "Modal-Key": os.getenv("Modal-Key"),
+        "Modal-Secret": os.getenv("Modal-Secret"),
+    }
 
     payload = request_data.model_dump()
 
     print(f"Endpoint URL: {endpoint_url}")
     print("Sending request to Modal server...")
 
-    response = requests.post(endpoint_url, json=payload)
+    response = requests.post(endpoint_url, json=payload, headers=headers)
     response.raise_for_status()
     print(f"Response status: {response.status_code}")
 
