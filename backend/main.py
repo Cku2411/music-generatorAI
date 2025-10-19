@@ -7,8 +7,12 @@ import requests
 
 from pydantic import BaseModel
 
-from prompts import PROMPT_GENERATOR_PROMPT
-from prompts import LYRICS_GENERATOR_PROMPT
+from prompts import (
+    LYRICS_GENERATOR_PROMPT,
+    CATEGORIES_GENERATOR_PROMPT,
+    PROMPT_GENERATOR_PROMPT,
+)
+
 import boto3
 
 
@@ -159,6 +163,14 @@ class MusicGenServer:
         # Run LLM
         return self.prompt_qwen(full_prompt)
 
+    def generate_categories(self, description: str) -> List[str]:
+        prompt = CATEGORIES_GENERATOR_PROMPT.format(description=description)
+
+        response_text = self.prompt_qwen(prompt)
+        categories = [cat.strip() for cat in response_text.split(",") if cat.strip()]
+
+        return categories
+
     def generate_and_upload_to_s3(
         self,
         prompt: str,
@@ -168,6 +180,7 @@ class MusicGenServer:
         infer_step: int,
         guidance_scale: float,
         seed: int,
+        description_for_categorization: str,
     ) -> GenerateMusicResponseS3:
         final_lyrics = "[instrumental]" if instrumental else lyrics
         print(f"Generated lyrics: {final_lyrics}")
@@ -175,7 +188,7 @@ class MusicGenServer:
         # AWS
         # Create S3 Bucket: thumbnails, songs
         s3_client = boto3.client("s3")
-        bucket_name = os.environ("S3_BUCKET_NAME")
+        bucket_name = os.environ["S3_BUCKET_NAME"]
 
         output_dir = "/tmp/outputs/"
         os.makedirs(output_dir, exist_ok=True)
@@ -188,6 +201,7 @@ class MusicGenServer:
             audio_duration=audio_duration,
             infer_step=infer_step,
             save_path=output_path,
+            manual_seed=str(seed),
         )
 
         audio_s3_key = f"{uuid.uuid4()}.wav"
@@ -208,6 +222,14 @@ class MusicGenServer:
         os.remove(image_output_path)
 
         # Category generation
+
+        categories = self.generate_categories(
+            description=description_for_categorization
+        )
+
+        return GenerateMusicResponseS3(
+            s3_key=audio_s3_key, cover_image_s3_key=image_s3_key, categories=categories
+        )
 
     @modal.fastapi_endpoint(method="POST")
     def generate(self) -> GenerateMusicResponse:
@@ -246,17 +268,40 @@ class MusicGenServer:
         if not request.instrumental:
             lyrics = self.generate_lyrics(request.full_describd_song)
 
+        return self.generate_and_upload_to_s3(
+            prompt=prompt,
+            lyrics=lyrics,
+            description_for_categorization=request.full_describd_song,
+            **request.model_dump(exclude={"full_describd_song"}),
+        )
+
     @modal.fastapi_endpoint(method="POST")
     def generate_with_lyrics(
         self, request: GenerateWithCustomLyricsRequest
     ) -> GenerateMusicResponseS3:
-        pass
+        return self.generate_and_upload_to_s3(
+            prompt=request.prompt,
+            lyrics=request.lyrics,
+            description_for_categorization=request.prompt,
+            **request.model_dump(),
+        )
 
     @modal.fastapi_endpoint(method="POST")
     def generate_with_described_lyrics(
         self, request: GenerateWithDescribedLyricsRequest
     ) -> GenerateMusicResponseS3:
-        pass
+        # Generate lyrics
+        lyrics = ""
+
+        if not request.instrumental:
+            lyrics = self.generate_lyrics(request.described_lyrics)
+
+        return self.generate_and_upload_to_s3(
+            prompt=request.prompt,
+            lyrics=lyrics,
+            description_for_categorization=request.prompt,
+            **request.model_dump(exclude={"described_lyrics"}),
+        )
 
     def test_endpoint(self):
         self.music_model
@@ -265,33 +310,40 @@ class MusicGenServer:
 @app.local_entrypoint()
 def main():
     server = MusicGenServer()
-    endpoint_url = server.generate.get_web_url()
+    endpoint_url = server.generate_from_description.get_web_url()
+    request_data = GenerateFromDescriptionRequest(
+        full_describd_song="lofi pop", guidance_scale=7.5
+    )
+
+    payload = request_data.model_dump()
 
     print(f"Endpoint URL: {endpoint_url}")
     print("Sending request to Modal server...")
 
-    response = requests.post(endpoint_url)
+    response = requests.post(endpoint_url, json=payload)
     response.raise_for_status()
     print(f"Response status: {response.status_code}")
 
-    result = GenerateMusicResponse(**response.json())
-    print(f"Received audio data length: {len(result.audio_data)} characters")
+    result = GenerateMusicResponseS3(**response.json())
+    print(
+        f"Received data success: {result.s3_key} -- {result.cover_image_s3_key} -- {result.categories}"
+    )
 
-    try:
-        audio_bytes = base64.b64decode(result.audio_data)
-        print(f"Decoded audio bytes length: {len(audio_bytes)}")
+    # try:
+    #     audio_bytes = base64.b64decode(result.audio_data)
+    #     print(f"Decoded audio bytes length: {len(audio_bytes)}")
 
-        output_filename = "generated.wav"
-        output_path = os.path.abspath(output_filename)
+    #     output_filename = "generated.wav"
+    #     output_path = os.path.abspath(output_filename)
 
-        with open(output_filename, "wb") as f:
-            f.write(audio_bytes)
+    #     with open(output_filename, "wb") as f:
+    #         f.write(audio_bytes)
 
-        print(f"Audio file saved successfully: {output_path}")
-        print(f"File size: {os.path.getsize(output_filename)} bytes")
+    #     print(f"Audio file saved successfully: {output_path}")
+    #     print(f"File size: {os.path.getsize(output_filename)} bytes")
 
-    except Exception as e:
-        print(f"Error saving audio file: {e}")
-        import traceback
+    # except Exception as e:
+    #     print(f"Error saving audio file: {e}")
+    #     import traceback
 
-        traceback.print_exc()
+    #     traceback.print_exc()
