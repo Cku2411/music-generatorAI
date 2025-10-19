@@ -1,10 +1,14 @@
 import base64
+from typing import List
 import modal
 import os
 import uuid
 import requests
 
 from pydantic import BaseModel
+
+from prompts import PROMPT_GENERATOR_PROMPT
+from prompts import LYRICS_GENERATOR_PROMPT
 
 
 app = modal.App("music-generator")
@@ -31,8 +35,36 @@ hf_volume = modal.Volume.from_name("qwen-hf-cache", create_if_missing=True)
 music_gen_secrets = modal.Secret.from_name("music-gen-secret")
 
 
+class AudioGenerationBase(BaseModel):
+    audio_duration: float = 180.0
+    seed: int = -1
+    quidance_scale: float = 15.0
+    infer_step: int = 60
+    instrumental: bool = False
+
+
 class GenerateMusicResponse(BaseModel):
     audio_data: str
+
+
+class GenerateFromDescriptionRequest(AudioGenerationBase):
+    full_describd_song: str
+
+
+class GenerateWithCustomLyricsRequest(AudioGenerationBase):
+    prompt: str
+    lyrics: str
+
+
+class GenerateMusicResponseS3(BaseModel):
+    s3_key: str
+    cover_image_s3_key: str
+    categories: List[str]
+
+
+class GenerateWithDescribedLyricsRequest(AudioGenerationBase):
+    prompt: str
+    described_lyrics: str
 
 
 # @app.function(image=image, secrets=[music_gen_secrets])
@@ -86,6 +118,62 @@ class MusicGenServer:
         )
         self.image_pipe.to("cuda")
 
+    def prompt_qwen(self, question: str):
+        messages = [
+            {"role": "user", "content": question},
+        ]
+        text = self.tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(
+            self.llm_model.device
+        )
+
+        generated_ids = self.llm_model.generate(
+            model_inputs.input_ids, max_new_tokens=512
+        )
+        generated_ids = [
+            output_ids[len(input_ids) :]
+            for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
+
+        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[
+            0
+        ]
+
+        return response
+
+    def generate_prompt(self, description: str):
+        # Insert description into template
+        full_prompt = PROMPT_GENERATOR_PROMPT.format(user_prompt=description)
+        # Run LLM
+
+        return self.prompt_qwen(full_prompt)
+
+    def generate_lyrics(self, description: str):
+        full_prompt = LYRICS_GENERATOR_PROMPT.format(description=description)
+        # Run LLM
+        return self.prompt_qwen(full_prompt)
+
+    def generate_and_upload_to_s3(
+        self,
+        prompt: str,
+        lyrics: str,
+        instrumental: bool,
+        audio_duration: float,
+        infer_step: int,
+        guidance_scale: float,
+        seed: int,
+    ) -> GenerateMusicResponseS3:
+        final_lyrics = "[instrumental]" if instrumental else lyrics
+        print(f"Generated lyrics: {final_lyrics}")
+        print(f"Prompt: \n{prompt}")
+        # AWS
+        # Create S3 Bucket: thumbnails, songs
+        # IAM users:
+        # -backend(model): PutObjects, getObjects, listObjects
+        # -Frontend (next-jd) : getObject, listObject
+
     @modal.fastapi_endpoint(method="POST")
     def generate(self) -> GenerateMusicResponse:
         output_dir = "/tmp/outputs/"
@@ -109,6 +197,31 @@ class MusicGenServer:
         os.remove(output_path)
 
         return GenerateMusicResponse(audio_data=audio_b64)
+
+    @modal.fastapi_endpoint(method="POST")
+    def generate_from_description(
+        self, request: GenerateFromDescriptionRequest
+    ) -> GenerateMusicResponseS3:
+
+        # Generating a prompt
+        prompt = self.generate_from_description(request.full_describd_song)
+        # Generate lyrics
+        lyrics = ""
+
+        if not request.instrumental:
+            lyrics = self.generate_lyrics(request.full_describd_song)
+
+    @modal.fastapi_endpoint(method="POST")
+    def generate_with_lyrics(
+        self, request: GenerateWithCustomLyricsRequest
+    ) -> GenerateMusicResponseS3:
+        pass
+
+    @modal.fastapi_endpoint(method="POST")
+    def generate_with_described_lyrics(
+        self, request: GenerateWithDescribedLyricsRequest
+    ) -> GenerateMusicResponseS3:
+        pass
 
     def test_endpoint(self):
         self.music_model
@@ -145,4 +258,5 @@ def main():
     except Exception as e:
         print(f"Error saving audio file: {e}")
         import traceback
+
         traceback.print_exc()
