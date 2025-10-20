@@ -320,7 +320,9 @@ def main():
 
     server = MusicGenServer()
     endpoint_url = server.generate_from_description.get_web_url()
-    request_data = GenerateFromDescriptionRequest(full_describd_song="lofi song")
+    request_data = GenerateFromDescriptionRequest(
+        full_describd_song="Hãy tạo một bản nhạc piano chill nhẹ nhàng, mang phong cách lo-fi hoặc ambient. Giai điệu nên đơn giản, êm dịu, dễ nghe, phù hợp để thư giãn, học tập hoặc làm việc. Tempo khoảng 60–80 BPM, sử dụng hợp âm trưởng và thứ xen kẽ để tạo cảm giác trôi chảy. Thêm một chút reverb để tăng chiều sâu không gian. Không cần trống hoặc hiệu ứng mạnh — chỉ piano mộc mạc và cảm xúc."
+    )
 
     headers = {
         "Modal-Key": os.getenv("Modal-Key"),
