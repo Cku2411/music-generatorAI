@@ -1,9 +1,9 @@
-import "~/styles/globals.css";
+import "@/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
-import { Providers } from "~/components/provider";
-import { Toaster } from "~/components/ui/sonner";
+import { Providers } from "@/components/provider";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "Create T3 App",

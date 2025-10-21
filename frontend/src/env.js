@@ -13,6 +13,9 @@ export const env = createEnv({
       .default("development"),
     MODAL_KEY: z.string(),
     MODAL_SECRET: z.string(),
+    GENERATE_FROM_DESCRIPTION: z.string(),
+    GENERATE_FROM_DESCRIBED_LYRICS: z.string(),
+    GENERATE_WITH_LYRICS: z.string(),
   },
 
   /**
@@ -33,6 +36,9 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     MODAL_KEY: process.env.MODAL_KEY,
     MODAL_SECRET: process.env.MODAL_SECRET,
+    GENERATE_FROM_DESCRIPTION: process.env.GENERATE_FROM_DESCRIPTION,
+    GENERATE_FROM_DESCRIBED_LYRICS: process.env.GENERATE_FROM_DESCRIBED_LYRICS,
+    GENERATE_WITH_LYRICS: process.env.GENERATE_WITH_LYRICS,
 
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },

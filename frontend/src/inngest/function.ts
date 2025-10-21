@@ -1,0 +1,218 @@
+import { db } from "@/server/db";
+import { inngest } from "./client";
+import { env } from "@/env";
+import { GENERATE_SONG_STATUS } from "@/lib/types/types";
+
+export const generateSong = inngest.createFunction(
+  {
+    id: "generate-song",
+    concurrency: {
+      limit: 1,
+      key: "event.data.userId",
+    },
+
+    onFailure: async ({ event, error }) => {
+      await db.song.update({
+        where: {
+          id: event.data?.event?.data?.songId,
+        },
+        data: {
+          status: GENERATE_SONG_STATUS.FAILED,
+        },
+      });
+    },
+  },
+
+  { event: "generate-song-event" },
+  async ({ event, step }) => {
+    // ====
+    const { songId } = event.data as { songId: string; userId: string };
+
+    // get info from songId
+    const { userId, credits, endpooint, body } = await step.run(
+      "check-credits",
+      async () => {
+        // from song => select user.id and user.creditss, prompts, lyrics,
+        const song = await db.song.findUnique({
+          where: {
+            id: songId,
+          },
+          select: {
+            user: {
+              select: {
+                id: true,
+                credits: true,
+              },
+            },
+            prompt: true,
+            lyrics: true,
+            fullDescribedSong: true,
+            describedLyrics: true,
+            instrumental: true,
+            guidanceScale: true,
+            inferStep: true,
+            audioDuration: true,
+            seed: true,
+          },
+        });
+
+        if (!song) throw new Error("No Song found!");
+
+        // send request body
+        type RequestBody = {
+          guidance_scale?: number;
+          instrumental?: boolean;
+          audio_duration?: number;
+          infer_step?: number;
+          seed?: number;
+          description_for_categorization?: string;
+          full_describd_song?: string;
+          prompt?: string;
+          lyrics?: string;
+          described_lyrics?: string;
+        };
+
+        let endpooint = "";
+        let body: RequestBody = {};
+
+        const commonParams = {
+          guidance_scale: song.guidanceScale ?? undefined,
+          infer_step: song.inferStep ?? undefined,
+          audio_duration: song.audioDuration ?? undefined,
+          seed: song.seed ?? undefined,
+          instrumental: song.instrumental ?? undefined,
+        };
+
+        // Description of a song
+        if (song.fullDescribedSong) {
+          endpooint = env.GENERATE_FROM_DESCRIPTION;
+          body = {
+            full_describd_song: song.fullDescribedSong,
+            ...commonParams,
+          };
+        }
+        // Lyrics  + prompt
+        else if (song.lyrics && song.prompt) {
+          endpooint = env.GENERATE_WITH_LYRICS;
+          body = {
+            lyrics: song.lyrics,
+            prompt: song.prompt,
+            ...commonParams,
+          };
+        }
+        // custom Mode: Prompt + described Lyrics
+        else if (song.describedLyrics && song.prompt) {
+          endpooint = env.GENERATE_FROM_DESCRIBED_LYRICS;
+          body = {
+            described_lyrics: song.describedLyrics,
+            prompt: song.prompt,
+            ...commonParams,
+          };
+        }
+
+        return {
+          userId: song.user.id,
+          credits: song.user.credits,
+          endpooint: endpooint,
+          body: body,
+        };
+      },
+    );
+
+    if (credits > 0) {
+      // gnenerate the song
+      await step.run("set-status-processing", async () => {
+        return await db.song.update({
+          where: {
+            id: songId,
+          },
+          data: {
+            status: GENERATE_SONG_STATUS.PROCESSED,
+          },
+        });
+      });
+
+      const response = await step.fetch(endpooint, {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: {
+          "Content-Type": "application/json",
+          "Modal-Key": env.MODAL_KEY,
+          "Modal-Secret": env.MODAL_SECRET,
+        },
+      });
+
+      await step.run("update-song-result", async () => {
+        const respponseData = response.ok
+          ? ((await response.json()) as {
+              s3_key: string;
+              cover_image_s3_key: string;
+              categories: string[];
+            })
+          : null;
+
+        // update song generate statsu
+        await db.song.update({
+          where: {
+            id: songId,
+          },
+          data: {
+            s3Key: respponseData?.s3_key,
+            thumbnailS3Key: respponseData?.cover_image_s3_key,
+            status: response.ok
+              ? GENERATE_SONG_STATUS.PROCESSED
+              : GENERATE_SONG_STATUS.FAILED,
+          },
+        });
+
+        // update
+
+        if (respponseData && respponseData?.categories.length > 0) {
+          await db.song.update({
+            where: {
+              id: songId,
+            },
+            data: {
+              Categories: {
+                connectOrCreate: respponseData.categories.map(
+                  (categoryName) => ({
+                    where: { name: categoryName },
+                    create: { name: categoryName },
+                  }),
+                ),
+              },
+            },
+          });
+        }
+      });
+
+      // deduct user'credits
+      return await step.run("deduct-credits", async () => {
+        if (!response.ok) return;
+
+        return await db.user.update({
+          where: {
+            id: userId,
+          },
+          data: {
+            credits: {
+              decrement: 1,
+            },
+          },
+        });
+      });
+    } else {
+      // set song status  " not enough credits"
+      await step.run("set-status-no-credits", async () => {
+        return await db.song.update({
+          where: {
+            id: songId,
+          },
+          data: {
+            status: "no credits",
+          },
+        });
+      });
+    }
+  },
+);
