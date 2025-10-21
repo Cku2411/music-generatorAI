@@ -26,10 +26,10 @@ export const generateSong = inngest.createFunction(
   { event: "generate-song-event" },
   async ({ event, step }) => {
     // ====
-    const { songId } = event.data as { songId: string; userId: string };
+    const { songId, userId } = event.data as { songId: string; userId: string };
 
     // get info from songId
-    const { userId, credits, endpooint, body } = await step.run(
+    const { credits, endpooint, body } = await step.run(
       "check-credits",
       async () => {
         // from song => select user.id and user.creditss, prompts, lyrics,
