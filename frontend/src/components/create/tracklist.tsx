@@ -3,6 +3,7 @@ import { Loader2, RefreshCcw, SearchIcon } from "lucide-react";
 import React, { useState } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
+import { GENERATE_SONG_STATUS } from "@/lib/types/types";
 
 export interface Track {
   id: string;
@@ -23,9 +24,14 @@ type Props = {
   tracks: Track[];
 };
 
-const TrackList = (props: Props) => {
+const TrackList = ({ tracks }: Props) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // fileter
+  const filteredTracks = tracks.filter((track) =>
+    track.title?.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
@@ -39,15 +45,32 @@ const TrackList = (props: Props) => {
               placeholder="Search..."
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <Button>
-              {isRefreshing ? (
-                <Loader2 className="mr-2 animate-spin" />
-              ) : (
-                <RefreshCcw className="mr-2" />
-              )}
-              Refresh
-            </Button>
           </div>
+          <Button
+            disabled={isRefreshing}
+            variant={"outline"}
+            size={"sm"}
+            onClick={() => {}}
+          >
+            {isRefreshing ? (
+              <Loader2 className="mr-2 animate-spin" />
+            ) : (
+              <RefreshCcw className="mr-2" />
+            )}
+            Refresh
+          </Button>
+        </div>
+
+        {/* Tracklist */}
+        <div>
+          {filteredTracks.length > 0
+            ? filteredTracks.map((track) => {
+                switch (track.status) {
+                  case GENERATE_SONG_STATUS.FAILED:
+                    return <div key={track.id}></div>;
+                }
+              })
+            : ""}
         </div>
       </div>
     </div>
