@@ -55,6 +55,7 @@ export const queueSong = async (
       prompt: generateRequest.prompt,
       lyrics: generateRequest.lyrics,
       fullDescribedSong: generateRequest.fullDesribedSong,
+      describedLyrics: generateRequest.describedLyrics,
       instrumental: generateRequest.instrumental,
       guidanceScale: guidanceScale,
       audioDuration: 180,
@@ -89,4 +90,42 @@ export const getPresignedUrl = async (key: string) => {
   return await getSignedUrl(s3Client, command, {
     expiresIn: 3600,
   });
+};
+
+export const getPlayUrl = async (songId: string) => {
+  const sessiion = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessiion) {
+    // throw new Error("Unauthorized");
+    redirect("/auth/sign-in");
+  }
+
+  const song = await db.song.findUniqueOrThrow({
+    where: {
+      id: songId,
+      OR: [{ userId: sessiion.user.id }, { published: true }],
+      s3Key: {
+        not: null,
+      },
+    },
+    select: {
+      s3Key: true,
+    },
+  });
+
+  // update lượt nghe
+  await db.song.update({
+    where: {
+      id: songId,
+    },
+    data: {
+      listenCount: {
+        increment: 1,
+      },
+    },
+  });
+
+  return await getPresignedUrl(song.s3Key!);
 };

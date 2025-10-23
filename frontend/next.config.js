@@ -5,6 +5,14 @@
 import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+  images: {
+    remotePatterns: [
+      new URL(
+        "https://music-generation-cku24.s3.ap-southeast-1.amazonaws.com/**",
+      ),
+    ],
+  },
+};
 
 export default config;
