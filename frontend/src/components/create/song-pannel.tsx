@@ -8,6 +8,7 @@ import { Loader2Icon, Music, Music2Icon, Plus } from "lucide-react";
 import { Switch } from "../ui/switch";
 import { Badge } from "../ui/badge";
 import { toast } from "sonner";
+import { generateSong, type GenerateRequest } from "@/actions/generation";
 
 type Props = {};
 const enum TabMode {
@@ -97,6 +98,53 @@ const SongPannel = (props: Props) => {
       return;
     }
   };
+
+  // generate Song
+  const handleCreate = async () => {
+    let requestBody: GenerateRequest = {};
+    if (mode === TabMode.SIMPLE) {
+      requestBody = {
+        fullDesribedSong: description,
+        instrumental: instrumental,
+      };
+    } else {
+      const prompt = styleInput;
+      if (lyricsMode === LyricMode.write) {
+        requestBody = {
+          prompt,
+          lyrics,
+          instrumental,
+        };
+      } else {
+        requestBody = {
+          prompt,
+          describedLyrics: lyrics,
+          instrumental,
+        };
+      }
+    }
+
+    try {
+      setIsLoading(true);
+      toast.loading("Creating new song, please wait ...", {
+        id: "create-song",
+      });
+      await generateSong(requestBody);
+      setDescription("");
+      setLyrics("");
+      setStyleInput("");
+    } catch (error) {
+      toast.error("Something went wrong ...");
+      console.log(error);
+      setIsLoading(false);
+    } finally {
+      toast.success("Creating song successfully!", {
+        id: "create-song",
+      });
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="bg-muted/30 w-full flex-col border-r p-3 lg:w-80">
       <div className="flex-1 overflow-y-auto">
@@ -247,7 +295,7 @@ const SongPannel = (props: Props) => {
 
       <div className="border-t p-4">
         <Button
-          onClick={handleClick}
+          onClick={() => handleCreate()}
           disabled={isloading}
           className="w-full cursor-pointer bg-gradient-to-r from-orange-500 to-pink-600 font-medium text-white hover:from-orange-600 hover:to-pink-600"
         >
