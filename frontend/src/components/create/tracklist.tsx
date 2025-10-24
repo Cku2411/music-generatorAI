@@ -18,7 +18,7 @@ import { Button } from "../ui/button";
 import { GENERATE_SONG_STATUS } from "@/lib/types/types";
 import { getPlayUrl } from "@/actions/generation";
 import { Badge } from "../ui/badge";
-import { setPublishedStatus } from "@/actions/song";
+import { renameSong, setPublishedStatus } from "@/actions/song";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,8 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { toast } from "sonner";
+import RenameDialog from "./rename-dialog";
+import { useRouter } from "next/navigation";
 
 export interface Track {
   id: string;
@@ -51,6 +53,7 @@ const TrackList = ({ tracks }: Props) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadingTrackId, setLoadingTrackId] = useState<string | null>(null);
   const [trackToRename, setTrackToRename] = useState<Track | null>(null);
+  const router = useRouter();
 
   // fileter
   const filteredTracks = tracks.filter((track) =>
@@ -58,6 +61,12 @@ const TrackList = ({ tracks }: Props) => {
   );
 
   // handle function
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    router.refresh();
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
+
   const handleTrackSelect = async (track: Track) => {
     console.log("okie handle play");
 
@@ -86,7 +95,7 @@ const TrackList = ({ tracks }: Props) => {
             disabled={isRefreshing}
             variant={"outline"}
             size={"sm"}
-            onClick={() => {}}
+            onClick={handleRefresh}
           >
             {isRefreshing ? (
               <Loader2 className="mr-2 animate-spin" />
@@ -157,7 +166,7 @@ const TrackList = ({ tracks }: Props) => {
                         <h3 className="text-muted-foreground truncate text-sm font-medium">
                           Processing song...
                         </h3>
-                        <p className="text-muted-foreground truncate">
+                        <p className="text-muted-foreground truncate text-xs">
                           Refresh to check the status.
                         </p>
                       </div>
@@ -260,10 +269,26 @@ const TrackList = ({ tracks }: Props) => {
               }
             })
           ) : (
-            <></>
+            <div className="flex flex-col items-center justify-center pt-20 text-center">
+              <Music className="text-muted-foreground size-10" />
+              <h2 className="mt-4 text-lg font-semibold">No music yet</h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {searchQuery
+                  ? "No tracks match your search."
+                  : "Create your first song to get started"}
+              </p>
+            </div>
           )}
         </div>
       </div>
+
+      {trackToRename && (
+        <RenameDialog
+          track={trackToRename}
+          onClose={() => setTrackToRename(null)}
+          onRename={renameSong}
+        />
+      )}
     </div>
   );
 };

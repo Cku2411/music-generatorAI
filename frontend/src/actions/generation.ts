@@ -48,6 +48,7 @@ export const queueSong = async (
 
   title = title.charAt(0).toUpperCase() + title.slice(1);
 
+  // Add song queued infomation to database
   const song = await db.song.create({
     data: {
       userId: userId,
@@ -61,6 +62,7 @@ export const queueSong = async (
       audioDuration: 180,
     },
   });
+  // Send Song's info to inggenst to continue
 
   console.log("Send event to inngest ...");
 

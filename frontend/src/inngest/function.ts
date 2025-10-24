@@ -120,18 +120,20 @@ export const generateSong = inngest.createFunction(
     );
 
     if (credits > 0) {
-      // gnenerate the song
+      // gnenerate the song to model server
+      // update status to song (processing...)
       await step.run("set-status-processing", async () => {
         return await db.song.update({
           where: {
             id: songId,
           },
           data: {
-            status: GENERATE_SONG_STATUS.PROCESSED,
+            status: GENERATE_SONG_STATUS.PROCESSING,
           },
         });
       });
 
+      // send Post request to Model sever
       const response = await step.fetch(endpooint, {
         method: "POST",
         body: JSON.stringify(body),
@@ -142,6 +144,8 @@ export const generateSong = inngest.createFunction(
         },
       });
 
+      // receive data and update
+
       await step.run("update-song-result", async () => {
         const respponseData = response.ok
           ? ((await response.json()) as {
@@ -151,7 +155,7 @@ export const generateSong = inngest.createFunction(
             })
           : null;
 
-        // update song generate statsu
+        // update song generate status
         await db.song.update({
           where: {
             id: songId,
