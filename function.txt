@@ -2,6 +2,7 @@ import { db } from "@/server/db";
 import { inngest } from "./client";
 import { env } from "@/env";
 import { GENERATE_SONG_STATUS } from "@/lib/types/types";
+import { revalidatePath } from "next/cache";
 
 export const generateSong = inngest.createFunction(
   {
@@ -133,6 +134,7 @@ export const generateSong = inngest.createFunction(
         });
       });
 
+      revalidatePath("/create");
       console.log(`processing the song`);
 
       // send Post request to Model sever
@@ -171,6 +173,7 @@ export const generateSong = inngest.createFunction(
           },
         });
 
+        revalidatePath("/create");
         console.log(`send the result`);
 
         // update

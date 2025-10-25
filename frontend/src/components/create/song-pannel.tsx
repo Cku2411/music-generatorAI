@@ -9,6 +9,7 @@ import { Switch } from "../ui/switch";
 import { Badge } from "../ui/badge";
 import { toast } from "sonner";
 import { generateSong, type GenerateRequest } from "@/actions/generation";
+import { useRouter } from "next/navigation";
 
 type Props = {};
 const enum TabMode {
@@ -48,6 +49,8 @@ const SongPannel = (props: Props) => {
   const [lyrics, setLyrics] = useState("");
   const [styleInput, setStyleInput] = useState("");
   const [isloading, setIsLoading] = useState(false);
+
+  const router = useRouter();
 
   const handleInspirationTagClick = (tag: string) => {
     // find the current tagss in description
@@ -133,6 +136,8 @@ const SongPannel = (props: Props) => {
       setDescription("");
       setLyrics("");
       setStyleInput("");
+
+      setTimeout(() => router.refresh(), 2000);
     } catch (error) {
       toast.error("Something went wrong ...");
       console.log(error);

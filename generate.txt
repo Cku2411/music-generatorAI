@@ -30,7 +30,6 @@ export const generateSong = async (generateRequest: GenerateRequest) => {
 
   await queueSong(generateRequest, 7.5, sessiion.user.id);
   console.log("Done, revalidate the server path");
-  revalidatePath("/create");
 };
 
 export const queueSong = async (

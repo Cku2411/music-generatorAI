@@ -9,6 +9,7 @@ import {
   Pencil,
   Play,
   RefreshCcw,
+  Rows4,
   SearchIcon,
   XCircle,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import {
 import { toast } from "sonner";
 import RenameDialog from "./rename-dialog";
 import { useRouter } from "next/navigation";
+import { userPlayerStore } from "@/store/use-player-store";
 
 export interface Track {
   id: string;
@@ -53,6 +55,7 @@ const TrackList = ({ tracks }: Props) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadingTrackId, setLoadingTrackId] = useState<string | null>(null);
   const [trackToRename, setTrackToRename] = useState<Track | null>(null);
+  const { setTrack } = userPlayerStore();
   const router = useRouter();
 
   // fileter
@@ -76,6 +79,14 @@ const TrackList = ({ tracks }: Props) => {
     const playUrl = await getPlayUrl(track.id);
     setLoadingTrackId(null);
     console.log(playUrl);
+    setTrack({
+      id: track.id,
+      title: track.title,
+      artwork: track.thumbnailUrl,
+      prompt: "",
+      createdByUsername: "cku24",
+      url: playUrl,
+    });
   };
 
   return (
@@ -111,6 +122,27 @@ const TrackList = ({ tracks }: Props) => {
           {filteredTracks.length > 0 ? (
             filteredTracks.map((track) => {
               switch (track.status) {
+                case GENERATE_SONG_STATUS.QUEUED:
+                  return (
+                    <div
+                      key={track.id}
+                      className="flex cursor-not-allowed items-center gap-4 rounded-lg"
+                    >
+                      <div className="bg-primary/10 flex size-12 flex-shrink-0 items-center justify-center rounded-md">
+                        <Rows4 className="text-primary size-6" />
+                        {/* {track.id} */}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-primary truncate text-sm font-medium">
+                          Queued - {track.title}
+                        </h3>
+                        <p className="text-muted-foreground truncate text-xs">
+                          Please wait for the song processing...
+                        </p>
+                      </div>
+                    </div>
+                  );
+
                 case GENERATE_SONG_STATUS.FAILED:
                   return (
                     <div
@@ -125,7 +157,7 @@ const TrackList = ({ tracks }: Props) => {
                         <h3 className="text-destructive truncate text-sm font-medium">
                           Generation failed
                         </h3>
-                        <p className="text-muted-foreground truncate">
+                        <p className="text-muted-foreground truncate text-xs">
                           Please try creating song again
                         </p>
                       </div>
@@ -164,7 +196,7 @@ const TrackList = ({ tracks }: Props) => {
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="text-muted-foreground truncate text-sm font-medium">
-                          Processing song...
+                          Processing - {track.title}
                         </h3>
                         <p className="text-muted-foreground truncate text-xs">
                           Refresh to check the status.

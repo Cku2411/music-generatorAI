@@ -18,8 +18,6 @@ const TrackListFetcher = async (props: Props) => {
     redirect("/auth/sign-in");
   }
 
-  await new Promise((res) => setTimeout(res, 1000));
-
   const songs = await db.song.findMany({
     where: {
       userId: session.user.id,
