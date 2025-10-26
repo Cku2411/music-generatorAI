@@ -36,9 +36,38 @@ const SoundBar = (props: Props) => {
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   };
 
-  const handleSeek = (value: number[]) => {
-    // TODO
-  };
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const updateTime = () => setCurrentTime(audio.currentTime);
+
+    const updateDuration = () => {
+      if (!isNaN(audio.duration)) {
+        setDuration(audio.duration);
+      }
+    };
+
+    const handleTrackEnd = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+
+    audio.addEventListener("timeupdate", updateTime);
+    audio.addEventListener("loadedmetadata", updateDuration);
+    audio.addEventListener("ended", handleTrackEnd);
+
+    return () => {
+      audio.removeEventListener("timeupdate", updateTime);
+      audio.removeEventListener("loadedmetadata", updateDuration);
+      audio.removeEventListener("ended", handleTrackEnd);
+    };
+  }, [track]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volumeValue[0]! / 100;
+    }
+  }, [volumeValue]);
 
   useEffect(() => {
     if (audioRef.current && track?.url) {
@@ -73,6 +102,15 @@ const SoundBar = (props: Props) => {
       setIsPlaying(true);
     }
   };
+
+  const handleSeek = (value: number[]) => {
+    if (audioRef.current && value[0] !== undefined) {
+      audioRef.current.currentTime = value[0];
+      setCurrentTime(value[0]);
+    }
+  };
+
+  if (!track) return null;
 
   return (
     <div className="px-4 pb-2">
@@ -162,7 +200,7 @@ const SoundBar = (props: Props) => {
           </div>
         </div>
 
-        <audio ref={audioRef} src={track?.url ?? "null"} preload="metadata" />
+        <audio ref={audioRef} preload="metadata" />
       </Card>
     </div>
   );

@@ -1,20 +1,23 @@
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import CreateSong from "@/components/create";
+import { getPresignedUrl } from "@/actions/generation";
+import { getAllSongs } from "@/actions/song";
 
-export default async function HomePage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+type Props = {};
 
-  if (!session) {
-    redirect("/auth/sign-in");
-  }
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-      <p>Dashboard</p>
-      <CreateSong />
-    </main>
+const HomePage = async (props: Props) => {
+  const songs = await getAllSongs();
+
+  const songsWithUrls = await Promise.all(
+    songs.map(async (song) => {
+      const thumbnailUrl = song.thumbnailS3Key
+        ? await getPresignedUrl(song.thumbnailS3Key)
+        : null;
+
+      return { ...song, thumbnailUrl };
+    }),
   );
-}
+
+  return <pre>{JSON.stringify(songsWithUrls, null, 4)}</pre>;
+  return <div className="flex h-full flex-col lg:flex-row"></div>;
+};
+
+export default HomePage;

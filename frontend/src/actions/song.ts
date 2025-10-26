@@ -58,3 +58,39 @@ export const renameSong = async (songId: string, newTitle: string) => {
 
   return { success: true, newTitle };
 };
+
+export const getAllSongs = async () => {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    redirect("/auth/sign-in");
+  }
+
+  const songs = await db.song.findMany({
+    where: {
+      published: true,
+    },
+    include: {
+      user: {
+        select: {
+          name: true,
+        },
+      },
+      _count: {
+        select: {
+          likes: true,
+        },
+      },
+
+      Categories: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 100,
+  });
+
+  return songs;
+};
