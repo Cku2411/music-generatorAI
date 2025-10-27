@@ -1,9 +1,11 @@
 "use client";
 
 import { getPlayUrl } from "@/actions/generation";
+import { toggleLikeSong } from "@/actions/song";
+import { cn } from "@/lib/utils";
 import { userPlayerStore } from "@/store/use-player-store";
-import type { Category, Song } from "@prisma/client";
-import { Loader2, Music, Play } from "lucide-react";
+import type { Category, Like, Song } from "@prisma/client";
+import { Heart, Loader2, Music, Play } from "lucide-react";
 import React, { useState } from "react";
 
 type SongWithRelation = Song & {
@@ -14,6 +16,7 @@ type SongWithRelation = Song & {
 
   categories?: Category[];
   thumbnailUrl?: string | null;
+  likes?: Like[];
 };
 
 type Props = {
@@ -23,6 +26,11 @@ type Props = {
 const SongCard = ({ song }: Props) => {
   const [isLoading, setIsLoading] = useState(false);
   const { setTrack } = userPlayerStore();
+
+  const [isLiked, setIsLiked] = useState(
+    song.likes ? song.likes.length > 0 : false,
+  );
+  const [likesCount, setLikesCount] = useState(song._count.likes);
 
   const handlePlay = async () => {
     const playUrl = await getPlayUrl(song.id);
@@ -37,6 +45,13 @@ const SongCard = ({ song }: Props) => {
       createdByUsername: song.user.name,
       url: playUrl,
     });
+  };
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await toggleLikeSong(song.id);
+    setIsLiked(!isLiked);
+    setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
   };
 
   return (
@@ -66,8 +81,26 @@ const SongCard = ({ song }: Props) => {
           </div>
         </div>
 
-        <h3>{song.title}</h3>
+        <h3 className="mt-2 truncate text-sm font-medium text-gray-900">
+          {song.title}
+        </h3>
         <p className="text-xs text-gray-500">{song.user.name}</p>
+
+        <div className="mt-1 flex items-center justify-between text-xs text-gray-900">
+          <span>{song.listenCount} listens</span>
+          <button
+            className="flex cursor-pointer items-center gap-1"
+            onClick={handleLike}
+          >
+            <Heart
+              className={cn(
+                "size-4",
+                isLiked ? "fill-red-500 text-red-500" : "",
+              )}
+            />
+            {likesCount} likes count
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -81,7 +81,7 @@ const HomePage = async (props: Props) => {
       <h1 className="text-3xl font-bold tracking-tight">Discover Music</h1>
       {/* Trending songs */}
 
-      {trendingSongs.length > 0 ? (
+      {trendingSongs.length > 0 && (
         <div className="mt-6">
           <h2 className="text-xl font-semibold">Trending</h2>
           <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -90,9 +90,21 @@ const HomePage = async (props: Props) => {
             ))}
           </div>
         </div>
-      ) : (
-        ""
       )}
+
+      {/* Categories */}
+      {Object.entries(categorizedSong)
+        .slice(0, 5)
+        .map(([categoryName, songs], idx) => (
+          <div key={idx} className="mt-6">
+            <h2 className="text-xl font-semibold">{categoryName}</h2>
+            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {songs.map((song) => (
+                <SongCard key={song.id} song={song} />
+              ))}
+            </div>
+          </div>
+        ))}
     </div>
   );
 };
