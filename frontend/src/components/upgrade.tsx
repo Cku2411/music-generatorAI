@@ -1,11 +1,11 @@
 "use client";
-import React from "react";
-import { Button } from "../ui/button";
 import { authClient } from "@/lib/auth-client";
+import React from "react";
+import { Button } from "./ui/button";
 
 type Props = {};
 
-const Upgrade = (props: Props) => {
+const UpgradePage = (props: Props) => {
   const upgrade = async () => {
     await authClient.checkout({
       products: [
@@ -14,17 +14,16 @@ const Upgrade = (props: Props) => {
       ],
     });
   };
-
   return (
     <Button
       variant={"outline"}
       size={"sm"}
       className="ml-2 cursor-pointer text-orange-400"
-      onClick={() => upgrade()}
+      onClick={upgrade}
     >
-      Upgrade
+      UpgradePage
     </Button>
   );
 };
 
-export default Upgrade;
+export default UpgradePage;
