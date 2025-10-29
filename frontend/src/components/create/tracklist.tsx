@@ -1,12 +1,10 @@
 "use client";
 import {
   DownloadIcon,
-  Edit2,
   Edit2Icon,
   Loader2,
   MoreHorizontal,
   Music,
-  Pencil,
   Play,
   RefreshCcw,
   Rows4,

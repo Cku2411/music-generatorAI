@@ -1,9 +1,7 @@
 import { getUserCredits } from "@/actions/user";
 import React from "react";
 
-type Props = {};
-
-const Credits = async (props: Props) => {
+const Credits = async () => {
   const credits = await getUserCredits();
   return (
     <>

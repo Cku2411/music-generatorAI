@@ -41,11 +41,11 @@ export const auth = betterAuth({
         checkout({
           products: [
             {
-              productId: "92924f6e-f751-467b-bac0-599a30f24e60", // ID of Product from Polar Dashboard
+              productId: env.PRODUCT_MEDIUM, // ID of Product from Polar Dashboard
               slug: "medium", // Custom slug for easy reference in Checkout URL, e.g. /checkout/pro
             },
             {
-              productId: "8fb266a2-aa86-4470-9307-18f399756119", // ID of Product from Polar Dashboard
+              productId: env.PRODUCT_LARGE,
               slug: "large", // Custom slug for easy reference in Checkout URL, e.g. /checkout/pro
             },
           ],
@@ -67,11 +67,11 @@ export const auth = betterAuth({
 
             let creditsToAdd = 0;
             switch (productId) {
-              case "92924f6e-f751-467b-bac0-599a30f24e60":
-                creditsToAdd = 5;
+              case env.PRODUCT_LARGE:
+                creditsToAdd = 20;
                 break;
 
-              case "8fb266a2-aa86-4470-9307-18f399756119":
+              case env.PRODUCT_MEDIUM:
                 creditsToAdd = 10;
                 break;
             }

@@ -3,6 +3,11 @@ import { inngest } from "./client";
 import { env } from "@/env";
 import { GENERATE_SONG_STATUS } from "@/lib/types/types";
 
+type GenerateSongEventData = {
+  songId: string;
+  userId: string;
+};
+
 export const generateSong = inngest.createFunction(
   {
     id: "generate-song",
@@ -11,22 +16,25 @@ export const generateSong = inngest.createFunction(
       key: "event.data.userId",
     },
 
-    onFailure: async ({ event, error }) => {
-      await db.song.update({
-        where: {
-          id: event.data?.event?.data?.songId,
-        },
-        data: {
-          status: GENERATE_SONG_STATUS.FAILED,
-        },
-      });
+    onFailure: async ({ event }) => {
+      const failedEvent = event.data?.event?.data as GenerateSongEventData;
+      if (failedEvent?.songId) {
+        await db.song.update({
+          where: {
+            id: failedEvent.songId,
+          },
+          data: {
+            status: GENERATE_SONG_STATUS.FAILED,
+          },
+        });
+      }
     },
   },
 
   { event: "generate-song-event" },
   async ({ event, step }) => {
     // ====
-    const { songId, userId } = event.data as { songId: string; userId: string };
+    const { songId, userId } = event.data as GenerateSongEventData;
 
     // get info from songId
     const { credits, endpooint, body } = await step.run(

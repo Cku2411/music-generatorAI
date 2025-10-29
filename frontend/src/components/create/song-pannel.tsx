@@ -4,14 +4,13 @@ import { Tabs, TabsTrigger, TabsList } from "../ui/tabs";
 import { TabsContent } from "@radix-ui/react-tabs";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
-import { Loader2Icon, Music, Music2Icon, Plus } from "lucide-react";
+import { Loader2Icon, Music, Plus } from "lucide-react";
 import { Switch } from "../ui/switch";
 import { Badge } from "../ui/badge";
 import { toast } from "sonner";
 import { generateSong, type GenerateRequest } from "@/actions/generation";
 import { useRouter } from "next/navigation";
 
-type Props = {};
 const enum TabMode {
   SIMPLE = "simple",
   CUSTOME = "custom",
@@ -41,7 +40,7 @@ const styleTags = [
   "Ambient pads",
 ];
 
-const SongPannel = (props: Props) => {
+const SongPannel = () => {
   const [mode, setMode] = useState<TabMode>(TabMode.SIMPLE);
   const [description, setDescription] = useState("");
   const [instrumental, setInstrumental] = useState(false);
@@ -87,18 +86,6 @@ const SongPannel = (props: Props) => {
       } else {
         setStyleInput(styleInput + ", " + tag);
       }
-    }
-  };
-
-  const handleClick = async () => {
-    if (mode === TabMode.SIMPLE && !description.trim()) {
-      toast.error("Please describe your song before creating.");
-      return;
-    }
-
-    if (mode === TabMode.CUSTOME && !styleInput.trim()) {
-      toast.error("Please add some style for your song");
-      return;
     }
   };
 

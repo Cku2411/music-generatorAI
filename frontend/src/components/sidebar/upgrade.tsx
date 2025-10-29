@@ -2,15 +2,14 @@
 import React from "react";
 import { Button } from "../ui/button";
 import { authClient } from "@/lib/auth-client";
+import { env } from "@/env";
 
-type Props = {};
-
-const Upgrade = (props: Props) => {
+const Upgrade = () => {
   const upgrade = async () => {
     await authClient.checkout({
       products: [
-        "92924f6e-f751-467b-bac0-599a30f24e60",
-        "8fb266a2-aa86-4470-9307-18f399756119",
+        process.env.NEXT_PUBLIC_PRODUCT_LARGE!,
+        process.env.NEXT_PUBLIC_PRODUCT_MEDIUM!,
       ],
     });
   };

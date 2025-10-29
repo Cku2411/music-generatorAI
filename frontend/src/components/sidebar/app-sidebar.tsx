@@ -7,8 +7,6 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import MenuItems from "./sidebar-menu-items";
 import Credits from "./credits";

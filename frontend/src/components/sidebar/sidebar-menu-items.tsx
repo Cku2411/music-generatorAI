@@ -5,8 +5,6 @@ import React, { useMemo } from "react";
 import { SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 import Link from "next/link";
 
-type Props = {};
-
 const MENU_ITEMS = [
   {
     title: "Home",
@@ -20,7 +18,7 @@ const MENU_ITEMS = [
   },
 ];
 
-const MenuItems = (props: Props) => {
+const MenuItems = () => {
   const path = usePathname();
 
   const items = useMemo(

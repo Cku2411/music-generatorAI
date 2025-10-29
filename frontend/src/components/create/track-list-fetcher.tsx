@@ -7,9 +7,7 @@ import { redirect } from "next/navigation";
 import React from "react";
 import TrackList from "./tracklist";
 
-type Props = {};
-
-const TrackListFetcher = async (props: Props) => {
+const TrackListFetcher = async () => {
   const session = await auth.api.getSession({
     headers: await headers(),
   });

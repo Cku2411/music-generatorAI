@@ -15,7 +15,10 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
 
-type RenameResult = { success: boolean; newTitle?: string } | any;
+type RenameResult = {
+  success: boolean;
+  newTitle?: string;
+};
 
 type Props = {
   track: Track;

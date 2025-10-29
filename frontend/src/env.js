@@ -23,6 +23,8 @@ export const env = createEnv({
     POLAR_ACCESS_TOKEN: z.string(),
     POLAR_SUCCESS_URL: z.string(),
     POLAR_WEBHOOK_SECRET: z.string(),
+    PRODUCT_MEDIUM: z.string(),
+    PRODUCT_LARGE: z.string(),
   },
 
   /**
@@ -53,6 +55,8 @@ export const env = createEnv({
     POLAR_ACCESS_TOKEN: process.env.POLAR_ACCESS_TOKEN,
     POLAR_SUCCESS_URL: process.env.POLAR_SUCCESS_URL,
     POLAR_WEBHOOK_SECRET: process.env.POLAR_WEBHOOK_SECRET,
+    PRODUCT_MEDIUM: process.env.PRODUCT_MEDIUM,
+    PRODUCT_LARGE: process.env.PRODUCT_LARGE,
 
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },

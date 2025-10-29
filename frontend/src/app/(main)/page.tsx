@@ -4,9 +4,7 @@ import SongCard from "@/components/home/song-card";
 import { getDaysAgo } from "@/lib/date";
 import { Music } from "lucide-react";
 
-type Props = {};
-
-const HomePage = async (props: Props) => {
+const HomePage = async () => {
   const songs = await getAllSongs();
 
   const songsWithUrls = await Promise.all(

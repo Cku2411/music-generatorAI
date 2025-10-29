@@ -1,12 +1,9 @@
 "use client";
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { generateSong } from "@/actions/generation";
 import { toast } from "sonner";
 
-type Props = {};
-
-const CreateSong = (props: Props) => {
+const CreateSong = () => {
   return (
     <Button
       onClick={() => {

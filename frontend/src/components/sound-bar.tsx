@@ -19,9 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-type Props = {};
-
-const SoundBar = (props: Props) => {
+const SoundBar = () => {
   const { track } = userPlayerStore();
   const [isPlaying, setIsPlaying] = useState(false);
   const [volumeValue, setVolumeValue] = useState([33]);

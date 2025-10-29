@@ -9,9 +9,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
-type Props = {};
-
-const BreadCrumbHeader = (props: Props) => {
+const BreadCrumbHeader = () => {
   const pathname = usePathname();
   const paths = pathname === "/" ? [""] : pathname?.split("/");
 

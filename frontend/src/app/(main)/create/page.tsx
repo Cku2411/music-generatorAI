@@ -1,12 +1,9 @@
 import SongPannel from "@/components/create/song-pannel";
 import TrackListFetcher from "@/components/create/track-list-fetcher";
-import { auth } from "@/lib/auth";
 import { Loader2 } from "lucide-react";
 import React, { Suspense } from "react";
 
-type Props = {};
-
-const CreatePage = async (props: Props) => {
+const CreatePage = async () => {
   return (
     <div className="flex h-full flex-col lg:flex-row">
       <SongPannel />
